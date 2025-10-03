@@ -22,9 +22,6 @@ public class AutoHandlerSystem {
 	private int currentStateIndex;
 
 	//FSM Systems that the autoHandlerFSM uses
-	private ExampleFSMSystem subsystem1;
-	private ExampleFSMSystem subsystem2;
-	private ExampleFSMSystem subsystem3;
 
 	//Predefined auto paths
 	private static final AutoFSMState[] PATH1 = new AutoFSMState[]{
@@ -39,14 +36,8 @@ public class AutoHandlerSystem {
 	/**
 	 * Create FSMSystem and initialize to starting state.
 	 * Initializes any subsystems such as driveFSM, armFSM, ect.
-	 * @param fsm1 the first subsystem that the auto handler will call functions on
-	 * @param fsm2 the second subsystem that the auto handler will call functions on
-	 * @param fsm3 the third subsystem that the auto handler will call functions on
 	 */
-	public AutoHandlerSystem(ExampleFSMSystem fsm1, ExampleFSMSystem fsm2, ExampleFSMSystem fsm3) {
-		subsystem1 = fsm1;
-		subsystem2 = fsm2;
-		subsystem3 = fsm3;
+	public AutoHandlerSystem() {
 	}
 
 	/* ======================== Public methods ======================== */
@@ -68,9 +59,6 @@ public class AutoHandlerSystem {
 	 * @param path the auto path to be executed
 	 */
 	public void reset(AutoPath path) {
-		subsystem1.reset();
-		subsystem2.reset();
-		subsystem3.reset();
 
 		currentStateIndex = 0;
 		if (path == AutoPath.PATH1) {
@@ -90,23 +78,14 @@ public class AutoHandlerSystem {
 			return;
 		}
 
-		boolean isCurrentStateFinished;
+		boolean isCurrentStateFinished = true;
 		System.out.println("In State: " + getCurrentState());
 		switch (getCurrentState()) {
 			case STATE1:
-				isCurrentStateFinished = subsystem1.updateAutonomous(AutoFSMState.STATE1)
-					&& subsystem2.updateAutonomous(AutoFSMState.STATE1)
-					&& subsystem3.updateAutonomous(AutoFSMState.STATE1);
 				break;
 			case STATE2:
-				isCurrentStateFinished = subsystem1.updateAutonomous(AutoFSMState.STATE2)
-					&& subsystem2.updateAutonomous(AutoFSMState.STATE2)
-					&& subsystem3.updateAutonomous(AutoFSMState.STATE2);
 				break;
 			case STATE3:
-				isCurrentStateFinished = subsystem1.updateAutonomous(AutoFSMState.STATE3)
-					&& subsystem2.updateAutonomous(AutoFSMState.STATE3)
-					&& subsystem3.updateAutonomous(AutoFSMState.STATE3);
 				break;
 			default:
 				throw new IllegalStateException("Invalid state: " + getCurrentState().toString());

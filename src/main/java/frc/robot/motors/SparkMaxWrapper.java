@@ -1,5 +1,8 @@
 package frc.robot.motors;
 
+import static edu.wpi.first.units.Units.RPM;
+import static edu.wpi.first.units.Units.RotationsPerSecond;
+
 import com.revrobotics.sim.SparkMaxSim;
 import com.revrobotics.spark.SparkMax;
 
@@ -18,27 +21,13 @@ public class SparkMaxWrapper extends SparkMax implements LoggedMotor {
 
 	public static final double LOOP_PERIOD_MS = 0.020;
 
-	private double targetVelocity = 0;
-
 	/**
 	 * Constructor for CAN ID and motor type.
 	 * @param deviceId the CAN ID of the motor
 	 * @param type the type of motor
 	 */
 	public SparkMaxWrapper(int deviceId, MotorType type) {
-		// Initialize motor
-		super(deviceId, type);
-		init();
-
-		// only allow brushless motors
-		// this can be safely removed if neccesary
-		if (type != MotorType.kBrushless) {
-			throw new IllegalArgumentException("Only brushless motors are supported");
-		}
-
-		// Create sim instance
-		configs = MotorConstants.DEFAULT_SPARK_CONFIG;
-		motorSim = new SparkMaxSim(this, configs);
+		this(deviceId, type, MotorConstants.DEFAULT_SPARK_CONFIG);
 	}
 
 	/**
@@ -52,6 +41,12 @@ public class SparkMaxWrapper extends SparkMax implements LoggedMotor {
 		super(deviceId, type);
 		init();
 
+		// only allow brushless motors
+		// this can be safely removed if neccesary
+		if (type != MotorType.kBrushless) {
+			throw new IllegalArgumentException("Only brushless motors are supported");
+		}
+
 		// Create sim instance
 		configs = motorConfigs;
 		motorSim = new SparkMaxSim(this, configs);
@@ -60,16 +55,10 @@ public class SparkMaxWrapper extends SparkMax implements LoggedMotor {
 	@Override
 	public void updateSimState() {
 		// Update sim instance
-		motorSim.iterate(targetVelocity, RobotController.getBatteryVoltage(), LOOP_PERIOD_MS);
-	}
-
-	@Override
-	public void set(double speed) {
-		// Set real motor speed
-		super.set(speed);
-
-		// Add speed to buffer for sim
-		this.targetVelocity = speed * configs.freeSpeedRadPerSec;
+		motorSim.iterate(
+			RotationsPerSecond.convertFrom(get() * configs.freeSpeedRadPerSec, RPM),
+			RobotController.getBatteryVoltage(), LOOP_PERIOD_MS
+		);
 	}
 
 	@Override

@@ -1,7 +1,7 @@
 package frc.robot;
 
 // WPILib Imports
-import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.PS4Controller;
 
 /**
  * Common class for providing driver inputs during Teleop.
@@ -12,13 +12,13 @@ import edu.wpi.first.wpilibj.Joystick;
  */
 public class TeleopInput {
 	/* ======================== Constants ======================== */
-	private static final int LEFT_JOYSTICK_PORT = 0;
-	private static final int RIGHT_JOYSTICK_PORT = 1;
+	private static final int PORT = 0;
+	private static final String TAB = "Test";
 
 	/* ======================== Private variables ======================== */
 	// Input objects
-	private Joystick leftJoystick;
-	private Joystick rightJoystick;
+	private final PS4Controller controller;
+
 
 	/* ======================== Constructor ======================== */
 	/**
@@ -27,9 +27,7 @@ public class TeleopInput {
 	 * by WPILib until teleop mode.
 	 */
 	public TeleopInput() {
-		leftJoystick = new Joystick(LEFT_JOYSTICK_PORT);
-
-		rightJoystick = new Joystick(RIGHT_JOYSTICK_PORT);
+		controller = new PS4Controller(PORT);
 	}
 
 	/* ======================== Public methods ======================== */
@@ -39,50 +37,36 @@ public class TeleopInput {
 
 	/* ------------------------ Left Joystick ------------------------ */
 	/**
-	 * Get X axis of Left Joystick.
-	 * @return Axis value
+	 * Gets whether the shooter magnitude should be increased.
+	 * @return whether the shooter magnitude should be increased
 	 */
-	public double getLeftJoystickX() {
-		return leftJoystick.getX();
-	}
-	/**
-	 * Get Y axis of Left Joystick.
-	 * @return Axis value
-	 */
-	public double getLeftJoystickY() {
-		return leftJoystick.getY();
-	}
-	/**
-	 * Get the value of the shooter button.
-	 * @return True if button is pressed
-	 */
-	public boolean isShooterButtonPressed() {
-		return leftJoystick.getRawButton(1);
-	}
-	/**
-	 * Get the value of the intake button.
-	 * @return True if button is pressed
-	 */
-	public boolean isIntakeButtonPressed() {
-		return leftJoystick.getRawButton(2);
+	public boolean isIncreaseMagnitudeButtonPressed() {
+		return controller.getR1ButtonPressed();
 	}
 
-	/* ------------------------ Right Joystick ------------------------ */
 	/**
-	 * Get X axis of Right Joystick.
-	 * @return Axis value
+	 * Gets whether the shooter magnitude should be reduced.
+	 * @return whether the shooter magnitude should be reduced
 	 */
-	public double getRightJoystickX() {
-		return rightJoystick.getX();
+	public boolean isDecreaseMagnitudeButtonPressed() {
+		return controller.getL1ButtonPressed();
 	}
+
 	/**
-	 * Get Y axis of Right Joystick.
-	 * @return Axis value
+	 * Gets whether the shooter magnitude should be reversed.
+	 * @return whether the shooter magnitude should be reversed
 	 */
-	public double getRightJoystickY() {
-		return rightJoystick.getY();
+	public boolean isReverseDirectionButtonPressed() {
+		return controller.getCircleButtonPressed();
+	}
+
+	/**
+	 * Gets whether the controller should be used to control the shooter.
+	 * @return whether the controller should be used to control the shooter
+	 */
+	public boolean toggleControllerButtonPressed() {
+		return controller.getTriangleButton();
 	}
 
 	/* ======================== Private methods ======================== */
-
 }
