@@ -1,29 +1,22 @@
 package frc.robot.systems;
 
-import static edu.wpi.first.units.Units.RPM;
-
 import java.util.ArrayList;
 import java.util.List;
 
-import com.revrobotics.spark.SparkClosedLoopController;
+
 
 // WPILib Imports
 
 // Third party Hardware Imports
 import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
-import edu.wpi.first.networktables.GenericEntry;
-import edu.wpi.first.units.measure.AngularVelocity;
-import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
-import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.math.MathUtil;
 // Robot Imports
 import frc.robot.TeleopInput;
-import frc.robot.motors.SparkMaxWrapper;
 import frc.robot.systems.AutoHandlerSystem.AutoFSMState;
 
 enum FSMState {
@@ -33,9 +26,8 @@ enum FSMState {
 
 public class ShooterFSMSystem extends FSMSystem<FSMState> {
 	/* ======================== Constants ======================== */
-
-	private static final AngularVelocity MAX_VEL = RPM.of(100);
-	public static final FSMState DEFAULT_STATE = FSMState.ShuffleboardMode;
+	public static final FSMState DEFAULT_STATE = FSMState.ControllerMode;
+	public static final double SETPOINT_DIFF = 0.1;
 
 	/* ======================== Private variables ======================== */
 
@@ -45,38 +37,43 @@ public class ShooterFSMSystem extends FSMSystem<FSMState> {
 	public static record MotorSettings(int id, boolean inverted) { }
 
 	public static final MotorSettings[] SETTINGS = {
-		new MotorSettings(1, false),
-		new MotorSettings(2, true),
-		new MotorSettings(3, false)
+		new MotorSettings(8, false),
+		new MotorSettings(7, false),
+		new MotorSettings(20, true)
 	};
 
 	private final SparkMax[] motors;
-	private final SparkClosedLoopController controller;
-	private float mult = 0;
+	private double mult = 0;
 
-	private final GenericEntry shuffleboardValue = Shuffleboard
-		.getTab("Shooter")
-		.add("Requested Ouput", 0)
-		.withWidget(BuiltInWidgets.kTextView)
-		.getEntry();
+	// private final GenericEntry shuffleboardValue = Shuffleboard
+	// 	.getTab("Shooter")
+	// 	.add("Requested Ouput", 0)
+	// 	.withWidget(BuiltInWidgets.kTextView)
+	// 	.getEntry();
 
-	private final GenericEntry shuffleboardInputEnabled = Shuffleboard
-		.getTab("Shooter")
-		.add("Use Shuffleboard Input", true)
-		.withWidget(BuiltInWidgets.kToggleButton)
-		.getEntry();
+	// private final GenericEntry shuffleboardState = Shuffleboard
+	// 	.getTab("Shooter")
+	// 	.add("State", FSMState.ShuffleboardMode.name())
+	// 	.withWidget(BuiltInWidgets.kTextView)
+	// 	.getEntry();
 
-	private final GenericEntry shuffleboardSetpoint = Shuffleboard
-		.getTab("Shooter")
-		.add("True Setpoint", 0)
-		.withWidget(BuiltInWidgets.kTextView)
-		.getEntry();
+	// private final GenericEntry shuffleboardInputEnabled = Shuffleboard
+	// 	.getTab("Shooter")
+	// 	.add("Use Shuffleboard Input", true)
+	// 	.withWidget(BuiltInWidgets.kToggleButton)
+	// 	.getEntry();
 
-	private final GenericEntry shuffleboardRequestedOutput = Shuffleboard
-		.getTab("Shooter")
-		.add("Requested Setpoint", 0)
-		.withWidget(BuiltInWidgets.kTextView)
-		.getEntry();
+	// private final GenericEntry shuffleboardSetpoint = Shuffleboard
+	// 	.getTab("Shooter")
+	// 	.add("True Setpoint", 0)
+	// 	.withWidget(BuiltInWidgets.kTextView)
+	// 	.getEntry();
+
+	// private final GenericEntry shuffleboardRequestedOutput = Shuffleboard
+	// 	.getTab("Shooter")
+	// 	.add("Requested Setpoint", 0)
+	// 	.withWidget(BuiltInWidgets.kTextView)
+	// 	.getEntry();
 
 
 
@@ -85,52 +82,63 @@ public class ShooterFSMSystem extends FSMSystem<FSMState> {
 	 */
 	public ShooterFSMSystem() {
 		List<SparkMax> motorsList = new ArrayList<>(SETTINGS.length);
-		int prevCanId = -1;
+		int leader = SETTINGS[0].id;
 		for (MotorSettings settings : SETTINGS) {
-			var motor = new SparkMaxWrapper(settings.id, MotorType.kBrushless);
+			var motor = new SparkMax(settings.id, MotorType.kBrushless);
 			var config = new SparkMaxConfig()
 				.inverted(settings.inverted);
-			if (prevCanId != 0) {
-				config = config.follow(prevCanId);
+			if (settings.id != leader) {
+				config = config.follow(leader);
 			}
 			motor.configure(
 				config,
 				ResetMode.kResetSafeParameters,
-				PersistMode.kNoPersistParameters
+				PersistMode.kPersistParameters
 			);
 			motorsList.add(motor);
-			prevCanId = settings.id;
 		}
 		motors = motorsList.toArray(new SparkMax[SETTINGS.length]);
-		controller = motors[0].getClosedLoopController();
 	}
 
 	@Override
 	public void reset() {
-		for (var motor : motors) {
-			motor.stopMotor();
-		}
+		motors[0].stopMotor();
+		// for (var motor : motors) {
+		// 	motor.stopMotor();
+		// }
+		mult = 0;
 		setCurrentState(DEFAULT_STATE);
 	}
 
 	@Override
 	public void update(TeleopInput input) {
-		mult = switch (getCurrentState()) {
-			case ShuffleboardMode -> (float) clamp(shuffleboardValue.getDouble(mult), 1., 0.);
-			case ControllerMode ->
-				(float) clamp((
-					mult
-					+ (input.isIncreaseMagnitudeButtonPressed() ? 1 : 0)
-					- (input.isDecreaseMagnitudeButtonPressed() ? 1 : 0)
-				)
-				* (input.isReverseDirectionButtonPressed() ? 1 : -1),
-				1., 0.);
-
-		};
-		shuffleboardValue.setDouble(mult);
-		controller.setReference(MAX_VEL.times(mult).in(RPM), ControlType.kMAXMotionVelocityControl);
-		shuffleboardRequestedOutput.setDouble(mult);
-		shuffleboardSetpoint.setDouble(motors[0].get());
+		if (input.isIncreaseMagnitudeButtonPressed()) {
+			mult += SETPOINT_DIFF;
+		}
+		if (input.isDecreaseMagnitudeButtonPressed()) {
+			mult -= SETPOINT_DIFF;
+		}
+		mult = MathUtil.clamp(mult, -1, 1);
+		// mult = switch (getCurrentState()) {
+		// 	case ShuffleboardMode -> mult;
+		// 	//(float) clamp(shuffleboardValue.getDouble(mult), 1., 0.);
+		// 	case ControllerMode ->
+		// 		(float) MathUtil.clamp((
+		// 			mult
+		// 			+ (input.isIncreaseMagnitudeButtonPressed() ? SETPOINT_DIFF : 0)
+		// 			- (input.isDecreaseMagnitudeButtonPressed() ? SETPOINT_DIFF : 0)
+		// 		),
+		// 		// * (input.isReverseDirectionButtonPressed() ? 1 : -1),
+		// 		-1, 1);
+		// };
+		motors[0].set(mult);
+		// shuffleboardRequestedOutput.setDouble(mult);
+		// System.out.println(mult);
+		// System.out.println(input.isIncreaseMagnitudeButtonPressed());
+		// System.out.println(input.isDecreaseMagnitudeButtonPressed());
+		// shuffleboardSetpoint.setDouble(motors[0].get());
+		// shuffleboardState.setString(getCurrentState().name());
+		setCurrentState(nextState(input));
 	}
 
 	@Override
@@ -140,21 +148,16 @@ public class ShooterFSMSystem extends FSMSystem<FSMState> {
 
 	@Override
 	protected FSMState nextState(TeleopInput input) {
-		if (input.toggleControllerButtonPressed()) {
-			var nextState = getCurrentState() == FSMState.ControllerMode
-				? FSMState.ShuffleboardMode
-				: FSMState.ControllerMode;
-			shuffleboardInputEnabled.setBoolean(getCurrentState() == FSMState.ShuffleboardMode);
-			return nextState;
-		} else {
-			return shuffleboardInputEnabled.getBoolean(false)
-				? FSMState.ShuffleboardMode : FSMState.ControllerMode;
-		}
-	}
-
-	private double clamp(double val, double b1, double b2) {
-		double min = Math.min(b1, b2);
-		double max = Math.max(b1, b2);
-		return Math.min(Math.max(val, min), max);
+		return FSMState.ControllerMode;
+		// if (input.toggleControllerButtonPressed()) {
+		// 	var nextState = getCurrentState() == FSMState.ControllerMode
+		// 		? FSMState.ShuffleboardMode
+		// 		: FSMState.ControllerMode;
+		// 	shuffleboardInputEnabled.setBoolean(getCurrentState() == FSMState.ShuffleboardMode);
+		// 	return nextState;
+		// } else {
+		// 	return shuffleboardInputEnabled.getBoolean(false)
+		// 		? FSMState.ShuffleboardMode : FSMState.ControllerMode;
+		// }
 	}
 }

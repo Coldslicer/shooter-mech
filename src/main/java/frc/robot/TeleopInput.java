@@ -13,7 +13,6 @@ import edu.wpi.first.wpilibj.PS4Controller;
 public class TeleopInput {
 	/* ======================== Constants ======================== */
 	private static final int PORT = 0;
-	private static final String TAB = "Test";
 
 	/* ======================== Private variables ======================== */
 	// Input objects
@@ -65,7 +64,7 @@ public class TeleopInput {
 	 * @return whether the controller should be used to control the shooter
 	 */
 	public boolean toggleControllerButtonPressed() {
-		return controller.getTriangleButton();
+		return controller.getTriangleButtonPressed();
 	}
 
 	/* ======================== Private methods ======================== */
